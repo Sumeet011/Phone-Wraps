@@ -1,5 +1,5 @@
 'use client';
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import { CardCarousel } from "../ui/card-carousel";
 import img1 from "../../../public/images/card1.webp";
@@ -12,15 +12,39 @@ import { useRouter } from "next/navigation";
 
 
 const CardCarouselParent = () => {
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
   const router = useRouter();
-  const images = [
+  const [images, setImages] = useState([
     { src: img1.src, alt: "Image 1" },
     { src: img2.src, alt: "Image 2" },
     { src: img1.src, alt: "Image 3" },
     { src: img1.src, alt: "Image 4" },
     { src: img1.src, alt: "Image 5" },
     { src: img1.src, alt: "Image 6" },
-  ];
+  ]);
+
+  useEffect(() => {
+    // Fetch card category images from backend
+    const fetchImages = async () => {
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/design-assets?category=card&isActive=true`);
+        const data = await response.json();
+        
+        if (data.success && data.items && data.items.length > 0) {
+          const formattedImages = data.items.map((asset: any, index: number) => ({
+            src: asset.imageUrl,
+            alt: asset.name || `Image ${index + 1}`
+          }));
+          setImages(formattedImages);
+        }
+      } catch (error) {
+        console.error('Error fetching design assets:', error);
+      }
+    };
+    
+    fetchImages();
+  }, []);
+
   const handleOnClick = () => {
     
     router.push('/gamecollections');
