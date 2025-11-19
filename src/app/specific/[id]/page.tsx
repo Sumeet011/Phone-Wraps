@@ -8,7 +8,7 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 // Default placeholder image
-const Img = { src: '/images/card.webp' };
+const Img = { src: '/images/card1.webp' };
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const BASE_URL = `${BACKEND_URL}/api`;
