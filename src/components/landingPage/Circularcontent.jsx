@@ -1,5 +1,5 @@
 "use client";
-import react from "react";
+import React, { useState, useEffect } from "react";
 import CircularGallery from "@/components//homeCards/CircularGalary";
 import localFont from "next/font/local";
 const JersyFont = localFont({
@@ -7,8 +7,10 @@ const JersyFont = localFont({
 });
 
 const Circularcontent = () => {
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL ;
+  const [images, setImages] = useState([]);
 
-   const defaultItems = [
+  const defaultItems = [
       { image: `https://ik.imagekit.io/wr6ziyjiu/product1.jpg?updatedAt=1752859784998`, text: "Original" },
       { image: `https://ik.imagekit.io/wr6ziyjiu/product2.jpg?updatedAt=1752859784983`, text: "Mango Loco" },
       { image: `https://ik.imagekit.io/wr6ziyjiu/product3.jpg?updatedAt=1752859784960`, text: "Sunrise" },
@@ -19,6 +21,28 @@ const Circularcontent = () => {
       { image: `https://ik.imagekit.io/wr6ziyjiu/product8.jpg?updatedAt=1752859784906`, text: "Mnonster Ultra" },
       
     ];
+
+  useEffect(() => {
+    // Fetch card category images from backend
+    const fetchImages = async () => {
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/design-assets?category=CIRCULAR&isActive=true`);
+        const data = await response.json();
+        
+        if (data.success && data.items && data.items.length > 0) {
+          const formattedImages = data.items.map((asset, index) => ({
+            image: asset.imageUrl,
+            text: asset.name || `Image ${index + 1}`
+          }));
+          setImages(formattedImages);
+        }
+      } catch (error) {
+        console.error('Error fetching design assets:', error);
+      }
+    };
+    
+    fetchImages();
+  }, [BACKEND_URL]);
   return (
     <>
       <div className="w-full flex justify-center items-center">
@@ -34,7 +58,7 @@ const Circularcontent = () => {
       <div className="w-full flex justify-center items-center pb-20 ">
         <div className="w-full relative h-[330px] sm:h-[400px] md:h-[500px] lg:h-[600px]">
           <CircularGallery
-          items={defaultItems}
+          items={images.length > 0 ? images : defaultItems}
             bend={3}
             textColor="#ffffff"
             borderRadius={0.05}

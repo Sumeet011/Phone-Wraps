@@ -33,7 +33,7 @@ type FilterState = {
   Price?: string[];
 };
 
-const PORT=3000;
+const BACKEND_URl=process.env.NEXT_PUBLIC_BACKEND_URL;
 
 // components/Card.jsx
 const ProductCard: React.FC<{ drink: Drink }> = ({ drink }) => {
@@ -88,7 +88,7 @@ const Drinks = () => {
   const [activeFilters, setActiveFilters] = useState<FilterState>({});
 
   useEffect(() => {
-    fetch(`http://localhost:3000/api/products`) // Updated to port 3000
+    fetch(`${BACKEND_URl}/api/products`) // Updated to port 3000
       .then((res) => res.json())
       .then((data) => {
         const productsList = data.items || [];

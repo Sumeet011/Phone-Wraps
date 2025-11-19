@@ -8,11 +8,24 @@ import Navbar from "@/components/navbar/Navbar";
 // Default placeholder image
 const Img = { src: '/images/card.webp' };
 
-
 const JersyFont = localFont({
   src: "../../../public/fonts/jersey-10-latin-400-normal.woff2",
   display: "swap",
 });
+
+type Collection = {
+  _id: string;
+  name: string;
+  image?: string;
+  heroImage?: string;
+  Products?: any[];
+};
+
+type Group = {
+  _id: string;
+  name: string;
+  members: Collection[];
+};
 
 type Drink = {
   id: number;
@@ -70,14 +83,15 @@ const ProductCard: React.FC<{ drink: Drink; onClickPath?: string }> = ({ drink, 
 
 export default function GameCollections() {
   const router = useRouter();
-  const [groups, setGroups] = React.useState([]);
+  const [groups, setGroups] = React.useState<Group[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || "https://phone-wraps-backend.onrender.com";
 
   //fetch all groups from backend
   const fetchGroups = async () => {
     try {
       setLoading(true);
-      const response = await fetch("http://localhost:4000/api/groups");
+      const response = await fetch(`${BACKEND_URL}/api/groups`);
       const data = await response.json();
       console.log("Fetched groups:", data);
       if (data.success && data.items) {
@@ -109,14 +123,14 @@ export default function GameCollections() {
   };
 
   // Function to render each group with its collections
-  const renderGroupSection = (group: any, index: number) => {
+  const renderGroupSection = (group: Group, index: number) => {
     const groupId = group._id;
     const collections = group.members || [];
     const totalCollections = collections.length;
     
     // Scroll handler to update currentIndex to show last visible card
-    const handleScroll = (e: any) => {
-      const container = e.target;
+    const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+      const container = e.currentTarget;
       const scrollLeft = container.scrollLeft;
       const containerWidth = container.clientWidth;
       const cardWidth = 210; // Approximate width of card + gap
@@ -147,7 +161,7 @@ export default function GameCollections() {
             style={{ scrollSnapType: "x mandatory" }}
             role="list"
           >
-            {filteredCollections.map((collection: Collection) => (ollection) => (
+            {collections.map((collection: Collection) => (
               <div role="listitem" key={collection._id} className="snap-start">
                 <a
                   onClick={() => router.push(`/Specific_Collection/${collection._id}`)}

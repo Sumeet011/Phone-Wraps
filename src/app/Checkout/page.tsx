@@ -21,6 +21,7 @@ interface CartItem {
   type: string;
 }
 
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
 const CheckoutPage = () => {
   const router = useRouter();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -50,7 +51,7 @@ const CheckoutPage = () => {
         return;
       }
 
-      const response = await fetch('http://localhost:3000/api/cart', {
+      const response = await fetch(`${BACKEND_URL}/api/cart`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -102,7 +103,7 @@ const CheckoutPage = () => {
     }
 
     try {
-      const response = await fetch('http://localhost:3000/api/coupon/validate', {
+      const response = await fetch(`${BACKEND_URL}/api/coupon/validate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
