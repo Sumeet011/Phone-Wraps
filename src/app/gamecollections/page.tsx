@@ -147,7 +147,7 @@ export default function GameCollections() {
             style={{ scrollSnapType: "x mandatory" }}
             role="list"
           >
-            {collections.map((collection: any) => (
+            {filteredCollections.map((collection: Collection) => (ollection) => (
               <div role="listitem" key={collection._id} className="snap-start">
                 <a
                   onClick={() => router.push(`/Specific_Collection/${collection._id}`)}

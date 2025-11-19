@@ -110,7 +110,7 @@ const Drinks = () => {
     applyFilters();
   }, [activeFilters, products]);
 
-  const applyFilters = useCallback(() => {
+  const applyFilters = () => {
     let filtered = [...products];
 
     // Apply Type filter (gaming/Standard)
@@ -171,12 +171,12 @@ const Drinks = () => {
     }
 
     setFilteredProducts(filtered);
-  }, [products, activeFilters]);
+  };
 
-  const handleFilterChange = useCallback((filters: FilterState) => {
-    console.log("Filters changed:", filters);
+  const handleFilterChange = (filters: FilterState) => {
     setActiveFilters(filters);
-  }, []);
+    applyFilters();
+  };
 
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);

@@ -21,8 +21,8 @@ const Specific_Collection = () => {
   const collectionId = params?.id;
 
   // ALL STATE DECLARATIONS FIRST
-  const [defaultItems, setDefaultItems] = useState<Array<any>>([]);
-  const [collectionData, setCollectionData] = useState<any>(null);
+  const [collection, setCollection] = useState<Collection | null>(null);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedBrand, setSelectedBrand] = useState<string>("");
   const [selectedModel, setSelectedModel] = useState<string>("");

@@ -136,7 +136,7 @@ const CheckoutPage = () => {
   };
 
   // Calculate totals
-  const subtotal = cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+  const subtotal = cartItems.reduce((sum: number, item) => sum + (item.price * item.quantity), 0);
   const shipping = subtotal > 0 ? 5 : 0;
   const discountAmount = (subtotal * discountPercent) / 100;
   const totalCost = subtotal - discountAmount + shipping;
