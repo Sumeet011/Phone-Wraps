@@ -297,8 +297,8 @@ class Media {
     const normalizedDistance = Math.min(centerDistance / maxDistance, 1);
     const scaleFactor = maxScale - (maxScale - minScale) * normalizedDistance;
     
-    // Show/hide text based on center proximity
-    if (isCenter) {
+    // Show/hide text based on center proximity - only show for the actual center card
+    if (isCenter && Math.abs(x) < this.viewport.width * 0.05) {
       this.title.show();
     } else {
       this.title.hide();
@@ -479,8 +479,8 @@ class App {
         renderer: this.renderer,
         scene: this.scene,
         screen: this.screen,
-        text: data.text,
-        level:data.level,
+        text: data.text || data.name,
+        level: data.level,
         viewport: this.viewport,
         bend,
         textColor,

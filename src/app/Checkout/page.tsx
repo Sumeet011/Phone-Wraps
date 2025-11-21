@@ -34,6 +34,39 @@ const CheckoutPage = () => {
   // Fetch cart items on component mount
   useEffect(() => {
     window.scrollTo(0, 0);
+    
+    // Load saved coupon data from cart page
+    try {
+      const savedCouponData = localStorage.getItem('checkoutCoupon');
+      if (savedCouponData) {
+        const couponData = JSON.parse(savedCouponData);
+        const timeElapsed = Date.now() - (couponData.timestamp || 0);
+        
+        // Only use if less than 10 minutes old
+        if (timeElapsed < 10 * 60 * 1000) {
+          setCouponCode(couponData.couponCode || '');
+          setDiscountPercent(couponData.discountPercent || 0);
+          setIsCouponApplied(couponData.isCouponApplied || false);
+          console.log('✓ Loaded saved coupon:', couponData.couponCode, `${couponData.discountPercent}% off`);
+          
+          if (couponData.isCouponApplied) {
+            setTimeout(() => {
+              toast.info(`Coupon "${couponData.couponCode}" applied (${couponData.discountPercent}% off)`, {
+                position: "top-right",
+                autoClose: 3000,
+              });
+            }, 500);
+          }
+        } else {
+          // Clear expired data
+          console.warn('⚠ Coupon data expired, clearing...');
+          localStorage.removeItem('checkoutCoupon');
+        }
+      }
+    } catch (error) {
+      console.error('Error loading coupon data:', error);
+    }
+    
     fetchCartItems();
   }, []);
 

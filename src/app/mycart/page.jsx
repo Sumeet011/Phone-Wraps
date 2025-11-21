@@ -52,18 +52,49 @@ const CartPage = () => {
       const result = await response.json();
 
       if (result.success) {
+        console.log('Raw cart items from backend:', result.data.items);
+        
+        // Log items with missing product details or issues
+        result.data.items.forEach(item => {
+          if (!item.productDetails && item.type !== 'custom-design') {
+            console.warn(`⚠️ Missing productDetails for ${item.type}:`, {
+              type: item.type,
+              productId: item.productId,
+              _id: item._id
+            });
+          }
+          if (item.type === 'custom-design' && !item.customDesign?.designImageUrl && !item.customDesign?.originalImageUrl) {
+            console.warn(`⚠️ Custom design has no image:`, {
+              productId: item.productId,
+              _id: item._id,
+              customDesign: item.customDesign
+            });
+          }
+          // Warn if products/collections have customDesign populated (shouldn't happen)
+          if ((item.type === 'product' || item.type === 'collection') && item.customDesign) {
+            console.warn(`⚠️ Non-custom item has customDesign object:`, {
+              type: item.type,
+              productId: item.productId,
+              customDesign: item.customDesign
+            });
+          }
+        });
+        
         // Transform cart items to match your component structure
         const transformedItems = result.data.items.map(item => {
+          // SVG placeholder for missing images
+          const placeholderImage = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="80" height="80"%3E%3Crect width="80" height="80" fill="%23333"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-family="monospace" font-size="14" fill="%23666"%3ENo Image%3C/text%3E%3C/svg%3E';
+          
           // Handle custom design items
           if (item.type === 'custom-design') {
             return {
               _id: item._id,
               id: item.productId,
               name: 'Custom Design',
-              packSize: `${item.selectedModel}`,
+              packSize: `${item.selectedBrand} - ${item.selectedModel}`,
               price: item.price,
               quantity: item.quantity,
-              image: item.customDesign?.designImageUrl ,
+              image: item.customDesign?.designImageUrl || item.customDesign?.originalImageUrl || placeholderImage,
               selectedBrand: item.selectedBrand,
               selectedModel: item.selectedModel,
               type: item.type,
@@ -71,7 +102,23 @@ const CartPage = () => {
             };
           }
           
-          // Handle regular products and collections
+          // Handle collection items
+          if (item.type === 'collection') {
+            return {
+              _id: item._id,
+              id: item.productId,
+              name: item.productDetails?.name || 'Collection',
+              packSize: `${item.selectedBrand} - ${item.selectedModel}`,
+              price: item.price,
+              quantity: item.quantity,
+              image: item.productDetails?.image || item.productDetails?.heroImage || placeholderImage,
+              selectedBrand: item.selectedBrand,
+              selectedModel: item.selectedModel,
+              type: item.type
+            };
+          }
+          
+          // Handle regular product items
           return {
             _id: item._id,
             id: item.productId,
@@ -79,7 +126,7 @@ const CartPage = () => {
             packSize: `${item.selectedBrand} - ${item.selectedModel}`,
             price: item.price,
             quantity: item.quantity,
-            image: item.productDetails?.image ,
+            image: item.productDetails?.image || placeholderImage,
             selectedBrand: item.selectedBrand,
             selectedModel: item.selectedModel,
             type: item.type
@@ -296,7 +343,7 @@ const CartPage = () => {
   }
 
   return (
-    <div className="bg-[#090701] overflow-x-hidden">
+    <div className="bg-[#090701] h-screen overflow-x-hidden">
       <Navbar />
       <div className="min-h-screen text-white px-4 md:px-12 py-8">
         <h1
@@ -335,14 +382,28 @@ const CartPage = () => {
                   className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 py-4 border-b border-gray-700"
                 >
                   <div className="flex items-center gap-4">
-                    <img
-                      src={item.image?.src || item.image}
-                      alt={item.name}
-                      className="w-20 h-20 object-cover rounded"
-                    />
+                    {item.image && item.image.startsWith('http') ? (
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        onError={(e) => {
+                          e.target.onerror = null; // Prevent infinite loop
+                          e.target.style.display = 'none';
+                          e.target.nextElementSibling.style.display = 'flex';
+                        }}
+                        className="w-20 h-20 object-cover rounded"
+                      />
+                    ) : null}
+                    <div 
+                      className="w-20 h-20 bg-[#333] rounded flex items-center justify-center text-[#666] text-xs"
+                      style={{ display: item.image && item.image.startsWith('http') ? 'none' : 'flex' }}
+                    >
+                      No Image
+                    </div>
                     <div>
                       <p className="font-semibold text-lg">{item.name}</p>
-                      <p className="text-sm text-gray-400">{item.packSize}</p>
+                      <p className="text-sm text-gray-400">{item.packSize.split('-').slice(1).join('-')}</p>
+                      
                       <div className="mt-1 flex items-center gap-1 flex-wrap">
                         {item.type === 'collection' && (
                           <span className="text-xs text-[#9AE600] bg-[#9AE600]/20 px-2 py-0.5 rounded">

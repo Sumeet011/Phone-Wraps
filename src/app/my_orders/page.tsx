@@ -18,6 +18,9 @@ type OrderItem = {
   phoneModel: string;
   quantity: number;
   price: number;
+  itemType?: string;
+  collectionId?: string;
+  collectionName?: string;
 };
 
 type ShippingAddress = {
@@ -152,6 +155,46 @@ const MyOrders = () => {
     return '⏳ Pending';
   };
 
+  const getDeliveryStatus = (status: string) => {
+    const statusInfo: { [key: string]: { icon: string; text: string; color: string } } = {
+      'Pending': { icon: '⏳', text: 'Order Pending', color: 'text-yellow-400' },
+      'Confirmed': { icon: '✅', text: 'Order Confirmed', color: 'text-lime-400' },
+      'Processing': { icon: '📦', text: 'Processing', color: 'text-blue-400' },
+      'Shipped': { icon: '🚚', text: 'Shipped', color: 'text-purple-400' },
+      'Out for Delivery': { icon: '🛵', text: 'Out for Delivery', color: 'text-orange-400' },
+      'Delivered': { icon: '✅', text: 'Delivered', color: 'text-green-400' },
+      'Cancelled': { icon: '❌', text: 'Cancelled', color: 'text-red-400' },
+      'Refunded': { icon: '💰', text: 'Refunded', color: 'text-gray-400' },
+      'Failed': { icon: '❌', text: 'Failed', color: 'text-red-500' }
+    };
+    
+    const info = statusInfo[status] || { icon: '❓', text: status, color: 'text-gray-400' };
+    return { ...info };
+  };
+
+  const getEstimatedDelivery = (createdAt: string, status: string) => {
+    if (status === 'Delivered') {
+      return 'Delivered';
+    }
+    
+    const orderDate = new Date(createdAt);
+    const estimatedDate = new Date(orderDate);
+    estimatedDate.setDate(orderDate.getDate() + 5); // 5 days delivery estimate
+    
+    const today = new Date();
+    const daysLeft = Math.ceil((estimatedDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (daysLeft < 0) {
+      return 'Delayed';
+    } else if (daysLeft === 0) {
+      return 'Today';
+    } else if (daysLeft === 1) {
+      return 'Tomorrow';
+    } else {
+      return `${daysLeft} days`;
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col justify-center items-center h-screen bg-[#090701] text-white">
@@ -195,20 +238,90 @@ const MyOrders = () => {
                 </div>
 
                 <div>
-                  <h3 className="font-medium text-md mb-2">Products</h3>
+                  <h3 className="font-medium text-md mb-2">
+                    {order.status === 'Delivered' ? 'Products Received' : 'Order Items'}
+                  </h3>
                   <ul className="space-y-2 text-sm text-gray-300">
-                    {order.items.map((item, idx) => (
-                      <li key={idx} className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <span className="block">{item.productName}</span>
-                          <span className="text-xs text-gray-500">{item.phoneModel}</span>
-                        </div>
-                        <div className="text-right">
-                          <span className="block">x{item.quantity}</span>
-                          <span className="text-xs text-gray-500">₹{item.price * item.quantity}</span>
-                        </div>
-                      </li>
-                    ))}
+                    {(() => {
+                      // If not delivered, group collection items
+                      if (order.status !== 'Delivered') {
+                        const groupedItems: { [key: string]: { items: OrderItem[], totalQty: number, totalPrice: number } } = {};
+                        const regularItems: OrderItem[] = [];
+
+                        order.items.forEach((item) => {
+                          if (item.collectionId && item.collectionName) {
+                            const key = item.collectionId;
+                            if (!groupedItems[key]) {
+                              groupedItems[key] = {
+                                items: [],
+                                totalQty: 0,
+                                totalPrice: 0
+                              };
+                            }
+                            groupedItems[key].items.push(item);
+                            groupedItems[key].totalQty += item.quantity;
+                            groupedItems[key].totalPrice += item.price * item.quantity;
+                          } else {
+                            regularItems.push(item);
+                          }
+                        });
+
+                        return (
+                          <>
+                            {/* Show grouped collections */}
+                            {Object.entries(groupedItems).map(([collectionId, data]) => (
+                              <li key={collectionId} className="flex justify-between items-start border-l-2 border-lime-400 pl-2">
+                                <div className="flex-1">
+                                  <span className="block font-semibold text-lime-400">
+                                    {data.items[0].collectionName}
+                                  </span>
+                                  <span className="text-xs text-gray-500">Collection ({data.items.length} cards)</span>
+                                  <span className="text-xs text-yellow-400 block mt-1">
+                                    ⏳ Cards will be revealed on delivery
+                                  </span>
+                                </div>
+                                <div className="text-right">
+                                  <span className="block">x{data.totalQty}</span>
+                                  <span className="text-xs text-gray-500">₹{data.totalPrice}</span>
+                                </div>
+                              </li>
+                            ))}
+                            {/* Show regular items */}
+                            {regularItems.map((item, idx) => (
+                              <li key={`regular-${idx}`} className="flex justify-between items-start">
+                                <div className="flex-1">
+                                  <span className="block">{item.productName}</span>
+                                  <span className="text-xs text-gray-500">{item.phoneModel}</span>
+                                </div>
+                                <div className="text-right">
+                                  <span className="block">x{item.quantity}</span>
+                                  <span className="text-xs text-gray-500">₹{item.price * item.quantity}</span>
+                                </div>
+                              </li>
+                            ))}
+                          </>
+                        );
+                      }
+
+                      // If delivered, show all individual products
+                      return order.items.map((item, idx) => (
+                        <li key={idx} className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <span className="block">{item.productName}</span>
+                            <span className="text-xs text-gray-500">{item.phoneModel}</span>
+                            {item.collectionName && (
+                              <span className="text-xs text-lime-400 block">
+                                From: {item.collectionName}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-right">
+                            <span className="block">x{item.quantity}</span>
+                            <span className="text-xs text-gray-500">₹{item.price * item.quantity}</span>
+                          </div>
+                        </li>
+                      ));
+                    })()}
                   </ul>
                 </div>
 
@@ -236,10 +349,19 @@ const MyOrders = () => {
                 </div>
 
                 <div className="text-sm text-gray-400 space-y-1">
-                  <p className="flex justify-between">
-                    <span className="font-semibold">Status:</span>
-                    <span className={`${getStatusColor(order.status)} font-medium`}>{order.status}</span>
+                  <p className="flex justify-between items-center">
+                    <span className="font-semibold">Delivery Status:</span>
+                    <span className={`${getDeliveryStatus(order.status).color} font-medium flex items-center gap-1`}>
+                      <span>{getDeliveryStatus(order.status).icon}</span>
+                      <span>{getDeliveryStatus(order.status).text}</span>
+                    </span>
                   </p>
+                  {order.status !== 'Delivered' && order.status !== 'Cancelled' && order.status !== 'Failed' && (
+                    <p className="flex justify-between">
+                      <span className="font-semibold">Est. Delivery:</span>
+                      <span className="text-lime-400">{getEstimatedDelivery(order.createdAt, order.status)}</span>
+                    </p>
+                  )}
                   <p className="flex justify-between">
                     <span className="font-semibold">Payment:</span>
                     <span>{getPaymentStatusIcon(order.isPaid, order.paymentStatus)}</span>
@@ -249,7 +371,7 @@ const MyOrders = () => {
                     <span>{order.paymentMethod}</span>
                   </p>
                   <p className="flex justify-between">
-                    <span className="font-semibold">Date:</span>
+                    <span className="font-semibold">Order Date:</span>
                     <span>{new Date(order.createdAt).toLocaleDateString('en-IN', { 
                       day: '2-digit', 
                       month: 'short', 

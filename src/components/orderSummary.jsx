@@ -22,8 +22,17 @@ const OrderSummary = ({
 
   const router = useRouter();
   const handleCheckout = () => {
+    // Save coupon data to localStorage for checkout page
+    const checkoutData = {
+      couponCode: isCouponApplied ? couponCode : '',
+      discountPercent: isCouponApplied ? discountPercent : 0,
+      isCouponApplied,
+      timestamp: Date.now()
+    };
+    localStorage.setItem('checkoutCoupon', JSON.stringify(checkoutData));
+    
+    // Navigate to checkout
     router.push('/Checkout');
-
   };
 
   return (

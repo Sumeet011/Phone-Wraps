@@ -250,6 +250,13 @@ const PaymentModal = ({ isOpen, onClose, onSelectPayment, totalAmount, formData,
               localStorage.setItem('userEmail', formattedAddress.email);
             }
             
+            const storedUser = localStorage.getItem('USER');
+  if (storedUser) {
+    const user = JSON.parse(storedUser);
+    user.isLogedIn = true;
+    localStorage.setItem('USER', JSON.stringify(user));
+  }
+            
             toast.success('Order placed successfully!', {
               position: "top-center",
               autoClose: 3000

@@ -56,7 +56,6 @@ const Specific_Collection = () => {
 
   // ALL EFFECTS MUST COME BEFORE useMemo
   useEffect(() => {
-    console.log("collectionId:", collectionId);
 
     if (!collectionId) {
       console.log("No collectionId found");
@@ -65,29 +64,48 @@ const Specific_Collection = () => {
     }
 
     const fetchData = async () => {
-      toast.error("Fetched")
       try {
         setLoading(true);
         const url = `${BACKEND_URL}/api/collections/${collectionId}`;
-        console.log("Fetching from:", url);
 
         const response = await fetch(url);
-        console.log("Response status:", response.status);
 
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
 
         const result = await response.json();
-        console.log("Full API response:", result);
 
         if (result.success && result.data) {
-          console.log("Setting collection data:", result.data);
           setCollection(result.data);
 
+          // Fetch full product details for each product ID in the collection
           if (result.data.Products && Array.isArray(result.data.Products)) {
-            console.log("Products found:", result.data.Products);
-            setProducts(result.data.Products);
+            const productPromises = result.data.Products.map(async (productRef: any) => {
+              try {
+                // Extract the product ID - it could be a string or an object with _id
+                const productId = typeof productRef === 'string' ? productRef : (productRef._id || productRef.id);
+                
+                if (!productId) {
+                  console.error('Invalid product reference:', productRef);
+                  return null;
+                }
+
+                const productResponse = await fetch(`${BACKEND_URL}/api/products/${productId}`);
+                if (productResponse.ok) {
+                  const productResult = await productResponse.json();
+                  return productResult.success ? productResult.data : productResult;
+                }
+                return null;
+              } catch (error) {
+                console.error(`Error fetching product:`, error);
+                return null;
+              }
+            });
+
+            const fetchedProducts = await Promise.all(productPromises);
+            const validProducts = fetchedProducts.filter((p): p is Product => p !== null);
+            setProducts(validProducts);
           }
         } else if (result.Products) {
           console.log("Setting products directly:", result.Products);
@@ -209,21 +227,26 @@ const Specific_Collection = () => {
       return;
     }
 
-    const loadingToast = toast.loading("Adding to cart...", {
-      position: "top-right",
-    });
-
+    let loadingToast: any = null;
+    
     try {
+      loadingToast = toast.loading("Adding to cart...", {
+        position: "top-right",
+      });
+
       // Get userId from localStorage
-      
-    const userData = localStorage.getItem('USER');
-    const userId = userData ? JSON.parse(userData).id : null;
+      const userData = localStorage.getItem('USER');
+      const userId = userData ? JSON.parse(userData).id : null;
 
       if (!userId) {
-        toast.dismiss(loadingToast); // ✅ Dismiss loading toast
+        if (loadingToast) toast.dismiss(loadingToast);
         toast.error("Please refresh the page to continue.", {
           position: "top-right",
           autoClose: 3000,
+          hideProgressBar: false,
+          closeOnClick: true,
+          pauseOnHover: true,
+          draggable: true,
         });
         return;
       }
@@ -238,7 +261,7 @@ const Specific_Collection = () => {
         selectedModel: selectedModel,
       };
 
-      console.log("Sending cart item:", cartItem); // Debug log
+      console.log("Sending cart item:", cartItem);
 
       // Add to cart via API
       const response = await fetch(`${BACKEND_URL}/api/cart/add`, {
@@ -250,11 +273,15 @@ const Specific_Collection = () => {
         body: JSON.stringify(cartItem),
       });
 
-      const result = await response.json();
-      console.log("Add to cart result:", result); // Debug log
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
-      // ✅ Dismiss loading toast
-      toast.dismiss(loadingToast);
+      const result = await response.json();
+      console.log("Add to cart result:", result);
+
+      // Dismiss loading toast
+      if (loadingToast) toast.dismiss(loadingToast);
 
       if (result.success) {
         toast.success(`✅ ${quantity}x ${collectionInfo.title} added to cart!`, {
@@ -265,7 +292,6 @@ const Specific_Collection = () => {
           pauseOnHover: true,
           draggable: true,
         });
-
       } else {
         toast.error(`❌ ${result.message || "Failed to add to cart"}`, {
           position: "top-right",
@@ -276,12 +302,13 @@ const Specific_Collection = () => {
           draggable: true,
         });
       }
-    } catch (error) {
-      // ✅ Dismiss loading toast on error
-      toast.dismiss(loadingToast);
+    } catch (error: any) {
+      // Dismiss loading toast on error
+      if (loadingToast) toast.dismiss(loadingToast);
       
       console.error("Error adding to cart:", error);
-      toast.error("❌ Network error. Please try again.", {
+      const errorMessage = error?.message || "Network error. Please try again.";
+      toast.error(`❌ ${errorMessage}`, {
         position: "top-right",
         autoClose: 4000,
         hideProgressBar: false,
@@ -290,7 +317,7 @@ const Specific_Collection = () => {
         draggable: true,
       });
     }
-  }, [selectedBrand, selectedModel, quantity, collectionId, currentProduct, collectionInfo, router]);
+  }, [selectedBrand, selectedModel, quantity, collectionId, currentProduct, collectionInfo, BACKEND_URL]);
 
   // NOW CONDITIONAL RETURNS AFTER ALL HOOKS
   if (loading) {
@@ -322,18 +349,7 @@ const Specific_Collection = () => {
     <>
       <Navbar />
 
-      {/* Hero Banner Image */}
-      {/* Hero Banner Image */}
-      {collection?.heroImage ? (
-        <div className="relative w-full h-[300px] md:h-[400px] lg:h-[500px] mb-8">
-          <img
-            src={collection.heroImage}
-            alt={collection.name || "Collection Hero"}
-            className="w-full h-full object-cover"
-          />
-        </div>
-      ) : (
-        /* Title (only show if no hero image) */
+      
         <div className="w-full flex justify-center items-center mt-5">
           <h1
             className={`${JersyFont.className} text-[#9AE600] text-5xl md:text-7xl mt-6 -mb-6`}
@@ -341,7 +357,6 @@ const Specific_Collection = () => {
             {collectionInfo.title}
           </h1>
         </div>
-      )}
 
       {/* Circular Gallery */}
       <div className="w-full flex justify-center items-center pb-10">
