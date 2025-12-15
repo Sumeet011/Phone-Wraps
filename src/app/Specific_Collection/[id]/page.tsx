@@ -7,7 +7,8 @@ import { DropdownButton } from "@/components/ui/dropdown-button-upward";
 import { QuantitySelector } from "@/components/ui/quantity-selector";
 import { useParams, useRouter } from "next/navigation";
 import { BuyNowButton } from "@/components/ui/buy-now-button";
-import { toast } from "react-toastify";
+import { ToastContainer, toast } from "react-toastify";
+import 'react-toastify/dist/ReactToastify.css';
 
 const JersyFont = localFont({
   src: "../../../../public/fonts/jersey-10-latin-400-normal.woff2",
@@ -570,6 +571,7 @@ const Specific_Collection = () => {
           />
         </div>
       </div>
+      <ToastContainer />
     </>
   );
 };

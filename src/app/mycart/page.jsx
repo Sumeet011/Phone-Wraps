@@ -17,8 +17,7 @@ const CartPage = () => {
   const router = useRouter();
   const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [discountPercent, setDiscountPercent] = useState(0);
-  const [isCouponApplied, setIsCouponApplied] = useState(false);
+  const [appliedCoupons, setAppliedCoupons] = useState([]);
   const [couponCode, setCouponCode] = useState('');
   const [showTooltip, setShowTooltip] = useState(null);
 
@@ -292,25 +291,52 @@ const CartPage = () => {
     }
 
     try {
-      const response = await fetch(`${BACKEND_URL}/api/coupon/validate`, {
+      // First validate the coupon
+      const validateResponse = await fetch(`${BACKEND_URL}/api/coupon/validate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
           code: couponCode.toUpperCase(),
-          orderAmount: subtotal 
+          orderAmount: subtotal,
+          appliedCoupons: appliedCoupons
         })
       });
 
-      const result = await response.json();
+      const validateResult = await validateResponse.json();
 
-      if (result.success) {
-        setDiscountPercent(result.coupon.discountPercentage || 0);
-        setIsCouponApplied(true);
-        toast.success(`Coupon applied! ${result.coupon.discountPercentage}% off`);
+      if (validateResult.success) {
+        // Apply coupon to cart in backend
+        const userData = localStorage.getItem('USER');
+        const userId = userData ? JSON.parse(userData).id : null;
+        
+        if (userId) {
+          const applyResponse = await fetch(`${BACKEND_URL}/api/cart/coupon/apply`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'User-Id': userId
+            },
+            body: JSON.stringify({
+              code: validateResult.coupon.code,
+              discountPercentage: validateResult.coupon.discountPercentage,
+              discountAmount: validateResult.coupon.discountAmount
+            })
+          });
+
+          const applyResult = await applyResponse.json();
+          
+        totalDiscountAmount = appliedCoupons.reduce((sum, coupon) => sum + coupon.discountAmount, 0);
+  const totalCost = subtotal - totalDplyResult.data.appliedCoupons);
+            setCouponCode('');
+            toast.success(`Coupon applied! ${validateResult.coupon.discountPercentage}% off`);
+          } else {
+            toast.error(applyResult.message || "Failed to apply coupon");
+          }
+        }
       } else {
-        toast.error(result.message || "Invalid coupon code");
+        toast.error(validateResult.message || "Invalid coupon code");
       }
     } catch (error) {
       console.error('Error applying coupon:', error);
@@ -318,11 +344,33 @@ const CartPage = () => {
     }
   };
 
-  const handleRemoveCoupon = () => {
-    setDiscountPercent(0);
-    setIsCouponApplied(false);
-    setCouponCode('');
-    toast.info("Coupon removed");
+  const handleRemoveCoupon = async (couponCode) => {
+    try {
+      const userData = localStorage.getItem('USER');
+      const userId = userData ? JSON.parse(userData).id : null;
+      
+      if (userId) {
+        const response = await fetch(`${BACKEND_URL}/api/cart/coupon/remove/${couponCode}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'User-Id': userId
+          }
+        });
+
+        const result = await response.json();
+        
+        if (result.success) {
+          setAppliedCoupons(result.data.appliedCoupons);
+          toast.info("Coupon removed");
+        } else {
+          toast.error(result.message || "Failed to remove coupon");
+        }
+      }
+    } catch (error) {
+      console.error('Error removing coupon:', error);
+      toast.error("Failed to remove coupon");
+    }
   };
 
   const totalItems = cartItems.reduce((acc, item) => acc + item.quantity, 0);
@@ -519,15 +567,13 @@ const CartPage = () => {
               cartItems={cartItems}
               subtotal={subtotal}
               shipping={shipping}
-              discountPercent={discountPercent}
-              discountAmount={discountAmount}
+              appliedCoupons={appliedCoupons}
+              totalDiscountAmount={totalDiscountAmount}
               totalCost={totalCost}
               couponCode={couponCode}
               setCouponCode={setCouponCode}
               handleApplyCoupon={handleApplyCoupon}
-              isCouponApplied={isCouponApplied}
-              setIsCouponApplied={setIsCouponApplied}
-              setDiscountPercent={setDiscountPercent}
+              handleRemoveCoupon={handleRemoveCoupon}
               showActions={true}
               showCheckout={true}
             />

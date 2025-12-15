@@ -26,8 +26,7 @@ const CheckoutPage = () => {
   const router = useRouter();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [discountPercent, setDiscountPercent] = useState(0);
-  const [isCouponApplied, setIsCouponApplied] = useState(false);
+  const [appliedCoupons, setAppliedCoupons] = useState<any[]>([]);
   const [couponCode, setCouponCode] = useState('');
   console.log("Razorpay Key:", process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID);
 
@@ -44,14 +43,12 @@ const CheckoutPage = () => {
         
         // Only use if less than 10 minutes old
         if (timeElapsed < 10 * 60 * 1000) {
-          setCouponCode(couponData.couponCode || '');
-          setDiscountPercent(couponData.discountPercent || 0);
-          setIsCouponApplied(couponData.isCouponApplied || false);
-          console.log('✓ Loaded saved coupon:', couponData.couponCode, `${couponData.discountPercent}% off`);
+          setAppliedCoupons(couponData.appliedCoupons || []);
+          console.log('✓ Loaded saved coupons:', couponData.appliedCoupons?.length || 0);
           
-          if (couponData.isCouponApplied) {
+          if (couponData.appliedCoupons && couponData.appliedCoupons.length > 0) {
             setTimeout(() => {
-              toast.info(`Coupon "${couponData.couponCode}" applied (${couponData.discountPercent}% off)`, {
+              toast.info(`${couponData.appliedCoupons.length} coupon(s) applied`, {
                 position: "top-right",
                 autoClose: 3000,
               });
@@ -136,25 +133,52 @@ const CheckoutPage = () => {
     }
 
     try {
-      const response = await fetch(`${BACKEND_URL}/api/coupon/validate`, {
+      // First validate the coupon
+      const validateResponse = await fetch(`${BACKEND_URL}/api/coupon/validate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ 
           code: couponCode.toUpperCase(),
-          orderAmount: subtotal 
+          orderAmount: subtotal,
+          appliedCoupons: appliedCoupons
         })
       });
 
-      const result = await response.json();
+      const validateResult = await validateResponse.json();
 
-      if (result.success) {
-        setDiscountPercent(result.coupon.discountPercentage || 0);
-        setIsCouponApplied(true);
-        toast.success(`Coupon applied! ${result.coupon.discountPercentage}% off`);
+      if (validateResult.success) {
+        // Apply coupon to cart in backend
+        const userdata = localStorage.getItem('USER');
+        const userId = userdata ? JSON.parse(userdata).id : null;
+        
+        if (userId) {
+          const applyResponse = await fetch(`${BACKEND_URL}/api/cart/coupon/apply`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'User-Id': userId
+            },
+            body: JSON.stringify({
+              code: validateResult.coupon.code,
+              discountPercentage: validateResult.coupon.discountPercentage,
+              discountAmount: validateResult.coupon.discountAmount
+            })
+          });
+
+          const applyResult = await applyResponse.json();
+          
+          if (applyResult.success) {
+            setAppliedCoupons(applyResult.data.appliedCoupons);
+            setCouponCode('');
+            toast.success(`Coupon applied! ${validateResult.coupon.discountPercentage}% off`);
+          } else {
+            toast.error(applyResult.message || "Failed to apply coupon");
+          }
+        }
       } else {
-        toast.error(result.message || "Invalid coupon code");
+        toast.error(validateResult.message || "Invalid coupon code");
       }
     } catch (error) {
       console.error('Error applying coupon:', error);
@@ -162,18 +186,40 @@ const CheckoutPage = () => {
     }
   };
 
-  const handleRemoveCoupon = () => {
-    setDiscountPercent(0);
-    setIsCouponApplied(false);
-    setCouponCode('');
-    toast.info("Coupon removed");
+  const handleRemoveCoupon = async (couponCode: string) => {
+    try {
+      const userdata = localStorage.getItem('USER');
+      const userId = userdata ? JSON.parse(userdata).id : null;
+      
+      if (userId) {
+        const response = await fetch(`${BACKEND_URL}/api/cart/coupon/remove/${couponCode}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'User-Id': userId
+          }
+        });
+
+        const result = await response.json();
+        
+        if (result.success) {
+          setAppliedCoupons(result.data.appliedCoupons);
+          toast.info("Coupon removed");
+        } else {
+          toast.error(result.message || "Failed to remove coupon");
+        }
+      }
+    } catch (error) {
+      console.error('Error removing coupon:', error);
+      toast.error("Failed to remove coupon");
+    }
   };
 
   // Calculate totals
   const subtotal = cartItems.reduce((sum: number, item) => sum + (item.price * item.quantity), 0);
   const shipping = subtotal > 0 ? 5 : 0;
-  const discountAmount = (subtotal * discountPercent) / 100;
-  const totalCost = subtotal - discountAmount + shipping;
+  const totalDiscountAmount = appliedCoupons.reduce((sum, coupon) => sum + coupon.discountAmount, 0);
+  const totalCost = subtotal - totalDiscountAmount + shipping;
 
   if (loading) {
     return (
@@ -208,8 +254,8 @@ const CheckoutPage = () => {
         <PersonDetails 
           totalCost={totalCost}
           cartItems={cartItems as any}
-          couponCode={isCouponApplied ? couponCode : ''}
-          discountAmount={discountAmount}
+          appliedCoupons={appliedCoupons}
+          totalDiscountAmount={totalDiscountAmount}
         />
 
         {/* Right: Order Summary */}
@@ -217,15 +263,13 @@ const CheckoutPage = () => {
           cartItems={cartItems as any}
           subtotal={subtotal}
           shipping={shipping}
-          discountPercent={discountPercent}
-          discountAmount={discountAmount}
+          appliedCoupons={appliedCoupons}
+          totalDiscountAmount={totalDiscountAmount}
           totalCost={totalCost}
           couponCode={couponCode}
           setCouponCode={setCouponCode}
           handleApplyCoupon={handleApplyCoupon}
-          isCouponApplied={isCouponApplied}
-          setIsCouponApplied={setIsCouponApplied}
-          setDiscountPercent={setDiscountPercent}
+          handleRemoveCoupon={handleRemoveCoupon}
           showActions={true}
           showCheckout={false}
         />

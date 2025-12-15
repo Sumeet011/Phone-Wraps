@@ -6,15 +6,13 @@ const OrderSummary = ({
   cartItems = [],
   subtotal,
   shipping,
-  discountPercent,
-  discountAmount,
+  appliedCoupons = [],
+  totalDiscountAmount = 0,
   totalCost,
   couponCode,
   setCouponCode,
   handleApplyCoupon,
-  isCouponApplied,
-  setIsCouponApplied,
-  setDiscountPercent,
+  handleRemoveCoupon,
   showActions = true,
   showCheckout = true,
 }) => {
@@ -24,9 +22,7 @@ const OrderSummary = ({
   const handleCheckout = () => {
     // Save coupon data to localStorage for checkout page
     const checkoutData = {
-      couponCode: isCouponApplied ? couponCode : '',
-      discountPercent: isCouponApplied ? discountPercent : 0,
-      isCouponApplied,
+      appliedCoupons: appliedCoupons,
       timestamp: Date.now()
     };
     localStorage.setItem('checkoutCoupon', JSON.stringify(checkoutData));
@@ -78,36 +74,42 @@ const OrderSummary = ({
               placeholder="Enter your code"
               className="w-full p-2 bg-gray-800 text-white border border-gray-600 focus:border-lime-600 outline-none rounded"
             />
-            {isCouponApplied && (
-              <button
-                onClick={() => {
-                  setDiscountPercent(0);
-                  setIsCouponApplied(false);
-                  setCouponCode("");
-                }}
-                className="bg-red-500 hover:bg-red-500/80 px-4 py-2 rounded text-black font-bold"
-              >
-                Remove
-              </button>
-            )}
             <button
               onClick={handleApplyCoupon}
-              className="bg-lime-400 hover:bg-lime-400/80 cursor-pointer px-4 py-2 rounded text-black font-bold"
+              className="bg-lime-400 hover:bg-lime-400/80 cursor-pointer px-4 py-2 rounded text-black font-bold whitespace-nowrap"
             >
               Apply
             </button>
           </div>
-          {isCouponApplied && (
-            <p className="text-sm text-green-400 mt-2">Coupon applied!</p>
+          
+          {/* Applied Coupons List */}
+          {appliedCoupons && appliedCoupons.length > 0 && (
+            <div className="mt-3 space-y-2">
+              <p className="text-sm text-green-400">Applied Coupons:</p>
+              {appliedCoupons.map((coupon, index) => (
+                <div key={index} className="flex items-center justify-between bg-gray-800/50 p-2 rounded">
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-white">{coupon.code}</p>
+                    <p className="text-xs text-gray-400">{coupon.discountPercentage}% off • -₹{coupon.discountAmount.toFixed(2)}</p>
+                  </div>
+                  <button
+                    onClick={() => handleRemoveCoupon(coupon.code)}
+                    className="bg-red-500 hover:bg-red-600 px-3 py-1 rounded text-xs text-white font-semibold"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       )}
 
       {/* Discount */}
-      {isCouponApplied && (
-        <div className="flex justify-between text-sm text-green-400">
-          <p>Discount ({discountPercent}%)</p>
-          <p>- ₹{discountAmount.toFixed(2)}</p>
+      {appliedCoupons && appliedCoupons.length > 0 && (
+        <div className="flex justify-between text-sm text-green-400 pb-2">
+          <p>Total Discount ({appliedCoupons.length} coupon{appliedCoupons.length > 1 ? 's' : ''})</p>
+          <p>- ₹{totalDiscountAmount.toFixed(2)}</p>
         </div>
       )}
 

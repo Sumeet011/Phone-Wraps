@@ -194,7 +194,7 @@ const PaymentModal = ({ isOpen, onClose, onSelectPayment, totalAmount, formData,
             userId: userId,
             items: formattedItems,
             address: formattedAddress,
-            coupon: formData.couponCode || null
+            coupon: formData.appliedCoupons || []
           };
           
           // Create Razorpay payment session (NOT the order yet)
@@ -204,7 +204,7 @@ const PaymentModal = ({ isOpen, onClose, onSelectPayment, totalAmount, formData,
             body: JSON.stringify({
               userId: userId,
               items: formattedItems,
-              coupon: formData.couponCode || null
+              coupon: formData.appliedCoupons || []
             })
           });
 
@@ -237,7 +237,7 @@ const PaymentModal = ({ isOpen, onClose, onSelectPayment, totalAmount, formData,
               items: formattedItems,
               amount: totalAmount,
               address: formattedAddress,
-              coupon: formData.couponCode || null
+              coupon: formData.appliedCoupons || []
             })
           });
 

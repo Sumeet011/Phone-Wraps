@@ -1,5 +1,6 @@
 'use client';
 import { useState, Suspense, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import Navbar from "../../components/navbar/Navbar";
 import FiltersContent from "../../components/FiltersContent";
 import { FaSpinner } from "react-icons/fa";
@@ -85,46 +86,80 @@ const Drinks = () => {
   const [filteredProducts, setFilteredProducts] = useState<Drink[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeFilters, setActiveFilters] = useState<FilterState>({});
+  const [collectionName, setCollectionName] = useState<string>('');
+  const searchParams = useSearchParams();
+  const collectionId = searchParams.get('collection');
 
   useEffect(() => {
-    // Fetch all collections and products
-    Promise.all([
-      fetch(`${BACKEND_URl}/api/collections?type=normal`).then(res => res.json()),
-      fetch(`${BACKEND_URl}/api/products`).then(res => res.json())
-    ])
-      .then(([collectionsData, productsData]) => {
-        const collections = collectionsData.items || [];
+    // Fetch specific collection or all non-gaming collections
+    const fetchData = async () => {
+      try {
+        let normalCollections: any[] = [];
+        
+        if (collectionId) {
+          // Fetch specific collection
+          const collectionRes = await fetch(`${BACKEND_URl}/api/collections/${collectionId}`);
+          const collectionData = await collectionRes.json();
+          if (collectionData.success && collectionData.data) {
+            normalCollections = [collectionData.data];
+            setCollectionName(collectionData.data.name);
+          }
+        } else {
+          // Fetch all normal collections
+          const collectionsRes = await fetch(`${BACKEND_URl}/api/collections?type=normal`);
+          const collectionsData = await collectionsRes.json();
+          normalCollections = collectionsData.items || [];
+          setCollectionName('');
+        }
+
+        const productsRes = await fetch(`${BACKEND_URl}/api/products`);
+        const productsData = await productsRes.json();
         const allProducts = productsData.items || [];
 
-        // Get all product IDs that are in normal/standard collections
-        const normalCollectionProductIds = new Set<string>();
-        collections.forEach((collection: any) => {
+        // Get all product IDs from the collections
+        const collectionProductIds = new Set<string>();
+        normalCollections.forEach((collection: any) => {
           if (collection.Products && Array.isArray(collection.Products)) {
             collection.Products.forEach((productId: any) => {
-              // Handle both ObjectId and populated product objects
               const id = typeof productId === 'string' ? productId : productId._id || productId.id;
-              normalCollectionProductIds.add(id);
+              collectionProductIds.add(id);
             });
           }
         });
 
-        // Filter products that are in normal collections
-        const filtered = allProducts.filter((product: any) => 
-          normalCollectionProductIds.has(product._id || product.id)
+        // Filter products that are in the collections
+        const filteredProductsList = allProducts.filter((product: any) => 
+          collectionProductIds.has(product._id || product.id)
         );
 
-        console.log('Normal collections found:', collections.length);
-        console.log('Products in normal collections:', filtered.length);
+        // Map products to match the Drink type expected by the component
+        const mappedProducts = filteredProductsList.map((product: any) => ({
+          id: product._id,
+          name: product.name,
+          image: product.image,
+          price: product.price,
+          Link: `/specific/${product._id}`,
+          type: product.type,
+          category: product.category,
+          material: product.material,
+          finish: product.finish,
+          design: product.design
+        }));
 
-        setProducts(filtered);
-        setFilteredProducts(filtered);
+        console.log('Collections:', normalCollections.length);
+        console.log('Products:', mappedProducts.length);
+
+        setProducts(mappedProducts);
+        setFilteredProducts(mappedProducts);
         setLoading(false);
-      })
-      .catch((err) => {
+      } catch (err) {
         console.error("Failed to fetch products:", err);
         setLoading(false);
-      });
-  }, []);
+      }
+    };
+
+    fetchData();
+  }, [collectionId]);
 
   // Apply filters whenever activeFilters change
   const applyFilters = useCallback(() => {
@@ -260,9 +295,11 @@ const Drinks = () => {
   <div className="flex items-center justify-between mb-2 mt-5">
     <div>
       <h2 className="text-2xl font-bold ml-3 md:ml-7 xl:ml-10">
-        {filteredProducts.length === products.length 
-          ? 'All Products' 
-          : `Filtered Products (${filteredProducts.length})`}
+        {collectionName 
+          ? collectionName
+          : (filteredProducts.length === products.length 
+              ? 'All Products' 
+              : `Filtered Products (${filteredProducts.length})`)}
       </h2>
     </div>
 

@@ -489,6 +489,7 @@ const ProductDetails = () => {
         
       </div>
       <Footer />
+      <ToastContainer />
     </div>
   );
 };

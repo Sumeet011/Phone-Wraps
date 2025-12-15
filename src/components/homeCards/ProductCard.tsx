@@ -6,8 +6,8 @@ import Img from "../../../public/images/card.webp";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import HorizontalWithProp from "../../components/landingPage/HorizontalWithProp";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL;
-const URL = `${BACKEND_URL}/api/products/`;
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL?? "https://phone-wraps-backend.onrender.com";
+const URL = `${BACKEND_URL}/api/products`;
 
 const JersyFont = localFont({
   src: "../../../public/fonts/jersey-10-latin-400-normal.woff2",
@@ -15,10 +15,12 @@ const JersyFont = localFont({
 });
 
 type Drink = {
-  id: number;
+  id: string;
   name: string;
   image: string;
-  price: number;
+  price?: number;
+  type?: string;
+  productsCount?: number;
 };
 
 const ProductCard: React.FC<{ drink: Drink; href: string }> = ({ drink, href }) => {
@@ -33,9 +35,6 @@ const ProductCard: React.FC<{ drink: Drink; href: string }> = ({ drink, href }) 
           alt={drink.name}
           className="w-full h-full object-cover"
         />
-        <p className="absolute bottom-3 left-3 text-white text-sm font-semibold bg-black/60 px-2 py-1 rounded">
-          ₹{drink.price}
-        </p>
       </div>
 
       <div className="mt-3">
@@ -73,30 +72,43 @@ export default function HorizontalScrollableCards() {
     const fetchDrinks = async () => {
       try {
         setLoading(true);
-        const response = await fetch(URL);
         
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        // Fetch gaming and normal collections
+        const [gamingRes, normalRes] = await Promise.all([
+          fetch(`${BACKEND_URL}/api/collections?type=gaming`),
+          fetch(`${BACKEND_URL}/api/collections?type=normal`)
+        ]);
+        
+        if (!gamingRes.ok || !normalRes.ok) {
+          throw new Error('Failed to fetch collections');
         }
         
-        const result = await response.json();
-        console.log("API Response:", result);
+        const gamingData = await gamingRes.json();
+        const normalData = await normalRes.json();
         
-        // Handle different response structures
-        if (result.success && result.items) {
-          //only gaming drink sets
-          const filtered = result.items.filter((item: any) => item.type === "gaming");
-          setSampleDrinks(filtered);
-        } else if (result.data) {
-          setSampleDrinks(result.data);
-        } else if (Array.isArray(result)) {
-          setSampleDrinks(result);
-        } else {
-          setSampleDrinks([]);
-        }
+        const gamingCollections = gamingData.items || [];
+        const normalCollections = normalData.items || [];
+        
+        // Take first gaming collection and all normal collections
+        const collections = [
+          ...(gamingCollections.length > 0 ? [gamingCollections[0]] : []),
+          ...normalCollections
+        ];
+        
+        // Map collections to match the Drink type
+        const mappedCollections = collections.map((collection: any) => ({
+          id: collection._id,
+          name: collection.name,
+          image: collection.heroImage || collection.image || '/images/card.webp',
+          type: collection.type,
+          productsCount: collection.Products?.length || 0
+        }));
+        
+        console.log('Collections loaded:', mappedCollections.length);
+        setSampleDrinks(mappedCollections);
       } catch (error) {
-        console.error("Error fetching drinks:", error);
-        setError(error instanceof Error ? error.message : "Failed to fetch products");
+        console.error("Error fetching collections:", error);
+        setError(error instanceof Error ? error.message : "Failed to fetch collections");
         setSampleDrinks([]);
       } finally {
         setLoading(false);
@@ -195,7 +207,7 @@ export default function HorizontalScrollableCards() {
             >
               <ProductCard
                 drink={drink}
-                href={index === 0 ? "/gamecollections" : "/All"}
+                href={drink.type === 'gaming' ? "/gamecollections" : `/All?collection=${drink.id}`}
               />
             </Suspense>
           ))}

@@ -8,7 +8,7 @@ import { useUser } from "@clerk/clerk-react";
 import { useState } from "react";
 import PaymentModal from "./PaymentModal";
 
-const PersonDetails = ({ totalCost, cartItems = [], couponCode = '', discountAmount = 0 }) => {
+const PersonDetails = ({ totalCost, cartItems = [], appliedCoupons = [], totalDiscountAmount = 0 }) => {
   const {
     register,
     handleSubmit,
@@ -30,14 +30,14 @@ const PersonDetails = ({ totalCost, cartItems = [], couponCode = '', discountAmo
       return;
     }
 
-    // Add coupon code to form data
-    const formDataWithCoupon = {
+    // Add applied coupons to form data
+    const formDataWithCoupons = {
       ...data,
-      couponCode: couponCode
+      appliedCoupons: appliedCoupons
     };
 
     // Save form data and show payment modal
-    setCurrentFormData(formDataWithCoupon);
+    setCurrentFormData(formDataWithCoupons);
     setShowPaymentModal(true);
   };
 
